@@ -1,12 +1,12 @@
-import numpy as np
 import dlib
 from imutils import face_utils
+from imutils.video import VideoStream, FPS
 from scipy.spatial import distance as dist
 from threading import Thread
 import playsound
 import cv2
-import matplotlib.pyplot as plt
 import time
+
 #Constantes
 ALARME_SONORO="buzina.wav"
 EYE_THRESHOLD= 0.28
@@ -22,6 +22,7 @@ def disparar_alarme(path=ALARME_SONORO):
     """
     playsound.playsound(ALARME_SONORO)
     return None
+
 def calcular_ratio_olho(eye):
     #calcula a distancia euclidiana entre os landmarks na vertical
     A= dist.euclidean(eye[1],eye[5])
@@ -41,10 +42,12 @@ predictor=dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 (lStart, lEnd)=face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
 (rStart, rEnd)=face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
 #Inicializar vídeo
-cap=cv2.VideoCapture(0)
+#vs=cv2.VideoCapture(0)
+vs = VideoStream(0).start()
 time.sleep(2.0)
-while cap.isOpened():
-    ret, frame= cap.read()
+fps = FPS().start()
+while True:
+    frame= vs.read()
     frame=cv2.resize(frame, (800,800), interpolation=cv2.INTER_AREA)
     #encontrar retângulos delimitadores dos rostos encontrados
     rects=detector(frame,0)
@@ -72,12 +75,12 @@ while cap.isOpened():
             #dentro dos critérios, soar o alarme
             if CONTADOR>=NUM_FRAMES_CONSEC:
                 #ligar alarme
+                cv2.putText(frame, "[ALERTA] FADIGA!!", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                 if not ALARME_LIGADO:
                     ALARME_LIGADO=True
                     t=Thread(target=disparar_alarme())
                     t.daemon=True
                     t.start()
-                cv2.putText(frame, "[ALERTA] FADIGA!!", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
 
         else:
@@ -89,8 +92,12 @@ while cap.isOpened():
     cv2.imshow('Image', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+    fps.update()
 
+fps.stop()
+print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
+print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
-cap.release()
+vs.stop()
 cv2.destroyAllWindows()
 
